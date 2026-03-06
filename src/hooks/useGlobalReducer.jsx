@@ -1,24 +1,85 @@
-// Import necessary hooks and functions from React.
-import { useContext, useReducer, createContext } from "react";
-import storeReducer, { initialStore } from "../store"  // Import the reducer and the initial state.
+import React, { createContext, useReducer, useEffect } from "react";
+import storeReducer, { initialState } from "../store";
 
-// Create a context to hold the global state of the application
-// We will call this global state the "store" to avoid confusion while using local states
-const StoreContext = createContext()
+export const Context = createContext(null);
 
-// Define a provider component that encapsulates the store and warps it in a context provider to 
-// broadcast the information throught all the app pages and components.
-export function StoreProvider({ children }) {
-    // Initialize reducer with the initial state.
-    const [store, dispatch] = useReducer(storeReducer, initialStore())
-    // Provide the store and dispatch method to all child components.
-    return <StoreContext.Provider value={{ store, dispatch }}>
-        {children}
-    </StoreContext.Provider>
-}
+export const GlobalProvider = ({ children }) => {
+	const [state, dispatch] = useReducer(storeReducer, initialState);
 
-// Custom hook to access the global state and dispatch function.
-export default function useGlobalReducer() {
-    const { dispatch, store } = useContext(StoreContext)
-    return { dispatch, store };
-}
+	const actions = {
+		loadContacts: async () => {
+			dispatch({ type: "SET_LOADING", payload: true });
+			try {
+				let response = await fetch(`https://playground.4geeks.com/contact/agendas/${state.agenda}/contacts`);
+				
+				if (response.status === 404) {
+					await fetch(`https://playground.4geeks.com/contact/agendas/${state.agenda}`, { method: "POST" });
+					response = await fetch(`https://playground.4geeks.com/contact/agendas/${state.agenda}/contacts`);
+				}
+				
+				if (response.ok) {
+					const data = await response.json();
+					dispatch({ type: "SET_CONTACTS", payload: data.contacts });
+				}
+			} catch (error) {
+				console.error("Error cargando contactos:", error);
+			} finally {
+				dispatch({ type: "SET_LOADING", payload: false });
+			}
+		},
+		addContact: async (contact) => {
+			try {
+				const response = await fetch(`https://playground.4geeks.com/contact/agendas/${state.agenda}/contacts`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(contact)
+				});
+				if (response.ok) {
+					const newContact = await response.json();
+					dispatch({ type: "ADD_CONTACT", payload: newContact });
+					return true; 
+				}
+			} catch (error) {
+				return false;
+			}
+		},
+		updateContact: async (id, contact) => {
+			try {
+				const response = await fetch(`https://playground.4geeks.com/contact/agendas/${state.agenda}/contacts/${id}`, {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(contact)
+				});
+				if (response.ok) {
+					const updatedContact = await response.json();
+					dispatch({ type: "UPDATE_CONTACT", payload: updatedContact });
+					return true;
+				}
+			} catch (error) {
+				return false;
+			}
+		},
+		deleteContact: async (id) => {
+			try {
+				const response = await fetch(`https://playground.4geeks.com/contact/agendas/${state.agenda}/contacts/${id}`, {
+					method: "DELETE"
+				});
+				if (response.ok) {
+					dispatch({ type: "DELETE_CONTACT", payload: id });
+				}
+			} catch (error) {
+				console.error("Error al eliminar:", error);
+			}
+		}
+	};
+
+	useEffect(() => {
+		actions.loadContacts();
+	}, []);
+
+	return (
+		<Context.Provider value={{ state, actions }}>
+			{children}
+		</Context.Provider>
+	);
+};

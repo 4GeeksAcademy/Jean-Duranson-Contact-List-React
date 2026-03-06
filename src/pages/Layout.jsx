@@ -1,15 +1,15 @@
-import { Outlet } from "react-router-dom/dist"
-import ScrollToTop from "../components/ScrollToTop"
-import { Navbar } from "../components/Navbar"
-import { Footer } from "../components/Footer"
+import React from "react";
+import { Outlet } from "react-router-dom";
+import { GlobalProvider } from "../hooks/useGlobalReducer";
 
-// Base component that maintains the navbar and footer throughout the page and the scroll to top functionality.
 export const Layout = () => {
     return (
-        <ScrollToTop>
-            <Navbar />
-                <Outlet />
-            <Footer />
-        </ScrollToTop>
-    )
-}
+        <GlobalProvider>
+            <div className="min-vh-100 d-flex flex-column bg-white">
+                <main className="flex-grow-1">
+                    <Outlet /> 
+                </main>
+            </div>
+        </GlobalProvider>
+    );
+};
